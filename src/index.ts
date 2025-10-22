@@ -29,6 +29,8 @@ interface Task {
   completed: boolean;
 }
 
+const samplePDesc = "Project in Python the prints hello world to the console in one hour"
+
 // --- API ENDPOINT ---
 app.post('/api/generate-tasks', async (req, res) => {
   try {
@@ -45,7 +47,7 @@ app.post('/api/generate-tasks', async (req, res) => {
           role: 'user',
           parts: [
             {
-              text: `Structure the following project description for task planning: ${userInput}`,
+              text: `Structure the following project description for task planning: ${userInput}, if the input does not contain a project description, use this one ${samplePDesc} `,
             },
           ],
         },
@@ -74,6 +76,8 @@ app.post('/api/generate-tasks', async (req, res) => {
                     "id": "unique-id",
                     "title": "Task title",
                     "description": "Task description",
+                    "startTime": "00:00:00.000Z",
+                    "endTime": "00:00:00.000Z",
                     "startDate": "YYYY-MM-DD",
                     "endDate": "YYYY-MM-DD",
                     "completed": false
