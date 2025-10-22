@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { OpenAI } from 'openai';
+import { GoogleGenAI } from '@google/genai';
 
 // Load environment variables
 dotenv.config();
@@ -14,12 +14,12 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+// Initialize Google Gemini (Vertex AI)
+const ai = new GoogleGenAI({
+  project: process.env.GOOGLE_CLOUD_PROJECT,
+  location: process.env.GOOGLE_CLOUD_LOCATION || 'us-central1',
 });
-
-// Define Task interface
+// Define Task interface (for clarity)
 interface Task {
   id: string;
   title: string;
@@ -29,70 +29,78 @@ interface Task {
   completed: boolean;
 }
 
-// API endpoints
+// --- API ENDPOINT ---
 app.post('/api/generate-tasks', async (req, res) => {
   try {
     const { userInput } = req.body;
-    
     if (!userInput) {
       return res.status(400).json({ error: 'User input is required' });
     }
-    
-    // Step 1: Structure the user input
-    const structureResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
+
+    // STEP 1: Structure the user input
+    const structureResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
         {
-          role: "system",
-          content: "You are a helpful assistant that structures user input for task planning."
-        },
-        {
-          role: "user",
-          content: `Structure the following project description for task planning: ${userInput}`
-        }
-      ],
-    });
-    
-    const structuredInput = structureResponse.choices[0].message.content;
-    
-    // Step 2: Generate tasks based on structured input
-    const tasksResponse = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a project planning assistant. Generate a JSON array of tasks with the following structure:
-          [
+          role: 'user',
+          parts: [
             {
-              "id": "unique-id",
-              "title": "Task title",
-              "description": "Task description",
-              "startDate": "YYYY-MM-DD",
-              "endDate": "YYYY-MM-DD",
-              "completed": false
-            }
-          ]
-          
-          The tasks should form a logical roadmap for completing the project. Use realistic timeframes.`
+              text: `Structure the following project description for task planning: ${userInput}`,
+            },
+          ],
         },
-        {
-          role: "user",
-          content: `Based on this structured project description, generate a detailed task roadmap: ${structuredInput}`
-        }
       ],
     });
-    
-    // Parse the response to get the tasks
-    const tasksContent = tasksResponse.choices[0].message.content;
-    let tasks: Task[] = [];
-    
-    if (!tasksContent) {
-      console.error('No content received from OpenAI API');
-      return res.status(500).json({ error: 'Failed to get response from AI' });
+
+    const structuredInput =
+        structureResponse?.text?.trim();
+
+    if (!structuredInput) {
+      return res.status(500).json({ error: 'Failed to structure input using Gemini' });
     }
-    
+
+    // STEP 2: Generate the task list
+    const tasksResponse = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `
+                You are a project planning assistant. Generate a JSON array of tasks with this structure:
+                [
+                  {
+                    "id": "unique-id",
+                    "title": "Task title",
+                    "description": "Task description",
+                    "startDate": "YYYY-MM-DD",
+                    "endDate": "YYYY-MM-DD",
+                    "completed": false
+                  }
+                ]
+                
+                The tasks should form a logical roadmap for completing the project. Use realistic timeframes.
+                Based on this structured project description:
+                ${structuredInput}
+              `,
+            },
+          ],
+        },
+      ],
+    });
+
+    const tasksContent =
+        tasksResponse?.text?.trim();
+
+    if (!tasksContent) {
+      console.error('No content received from Gemini API');
+      return res.status(500).json({ error: 'No response from Gemini' });
+    }
+
+    // Parse JSON array of tasks
+    let tasks: Task[] = [];
     try {
-      // Extract JSON array from the response
       const jsonMatch = tasksContent.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
         tasks = JSON.parse(jsonMatch[0]);
@@ -100,10 +108,10 @@ app.post('/api/generate-tasks', async (req, res) => {
         tasks = JSON.parse(tasksContent);
       }
     } catch (error) {
-      console.error('Error parsing tasks:', error);
-      return res.status(500).json({ error: 'Failed to parse tasks from AI response' });
+      console.error('Error parsing tasks JSON:', error);
+      return res.status(500).json({ error: 'Failed to parse Gemini response as JSON' });
     }
-    
+
     res.json({ tasks });
   } catch (error) {
     console.error('Error generating tasks:', error);
@@ -111,7 +119,7 @@ app.post('/api/generate-tasks', async (req, res) => {
   }
 });
 
-// Start the server
+// --- START SERVER ---
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
