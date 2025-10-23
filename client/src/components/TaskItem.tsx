@@ -1,6 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
-import { format } from 'date-fns';
+import { format, formatISO } from 'date-fns'; // Импортируем formatISO для URL
 import { Task } from '../models/Task';
 
 const TaskCard = styled.div<{ completed: boolean }>`
@@ -53,8 +53,14 @@ const TaskDescription = styled.p<{ completed: boolean }>`
 
 const TaskActions = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between; /* Изменено для разделения чекбокса и кнопки */
+  align-items: center;
   margin-top: 1rem;
+`;
+
+const CheckboxContainer = styled.div`
+  display: flex;
+  align-items: center;
 `;
 
 const Checkbox = styled.input`
@@ -76,6 +82,23 @@ const CheckboxLabel = styled.label`
   }
 `;
 
+// Новый стилизованный компонент кнопки
+const CalendarButton = styled.a`
+  background-color: #f39c12; /* Оранжевый цвет Google Календаря */
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none; /* Убираем подчеркивание для ссылки */
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #e67e22;
+  }
+`;
+
 interface TaskItemProps {
   task: Task;
   onToggleComplete: (taskId: string, completed: boolean) => void;
@@ -94,6 +117,40 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete }) => {
     onToggleComplete(task.id, !task.completed);
   };
 
+  // 1. Функция для создания URL-адреса Google Календаря
+  const createGoogleCalendarUrl = (task: Task): string => {
+    // Google Calendar ожидает даты и времени в формате YYYYMMDDTHHMMSSZ (UTC)
+    // formatISO с опцией { representation: 'complete' } дает формат ISO 8601 (например, 2025-10-23T00:00:00.000Z).
+    // Мы удаляем символы, которые Google Календарь не любит в дате/времени (-, :, .) и 'Z'
+    
+    // Устанавливаем время начала и конца дня, если в задаче не указано время
+    const start = new Date(task.startDate);
+    start.setHours(9, 0, 0, 0); // Начало в 9:00
+    
+    const end = new Date(task.endDate);
+    end.setHours(10, 0, 0, 0); // Окончание в 10:00 (для простой задачи)
+
+    // Форматируем даты для Google Календаря
+    const formatCalendarDate = (date: Date) => {
+      return format(date, "yyyyMMdd'T'HHmmss");
+    };
+
+    const startTime = formatCalendarDate(start);
+    const endTime = formatCalendarDate(end);
+
+    // Экранирование заголовка и описания
+    const title = encodeURIComponent(task.title);
+    const details = encodeURIComponent(task.description);
+    
+    // Базовый URL для добавления события
+    const baseUrl = 'https://www.google.com/calendar/render?action=TEMPLATE';
+
+    // Собираем URL
+    const url = `${baseUrl}&text=${title}&dates=${startTime}/${endTime}&details=${details}&sf=true&output=xml`;
+    
+    return url;
+  };
+
   return (
     <TaskCard completed={task.completed}>
       <TaskHeader>
@@ -109,14 +166,25 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete }) => {
       </TaskDescription>
       
       <TaskActions>
-        <CheckboxLabel>
-          <Checkbox 
-            type="checkbox" 
-            checked={task.completed} 
-            onChange={handleToggleComplete}
-          />
-          {task.completed ? 'Completed' : 'Mark as completed'}
-        </CheckboxLabel>
+        <CheckboxContainer>
+          <CheckboxLabel>
+            <Checkbox 
+              type="checkbox" 
+              checked={task.completed} 
+              onChange={handleToggleComplete}
+            />
+            {task.completed ? 'Completed' : 'Mark as completed'}
+          </CheckboxLabel>
+        </CheckboxContainer>
+        
+        {/* 2. Добавляем кнопку экспорта */}
+        <CalendarButton
+          href={createGoogleCalendarUrl(task)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          📅 Export to Calendar
+        </CalendarButton>
       </TaskActions>
     </TaskCard>
   );
