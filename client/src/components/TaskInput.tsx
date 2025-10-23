@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import { generateTasks } from '../services/api';
 import { Task } from '../models/Task';
@@ -62,6 +62,44 @@ const Button = styled.button`
   }
 `;
 
+const FileUploadContainer = styled.div`
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+`;
+
+const FileUploadButton = styled.button`
+  background-color: #ecf0f1;
+  color: #34495e;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  
+  &:hover {
+    background-color: #dfe6e9;
+  }
+`;
+
+const FileUploadIcon = styled.span`
+  margin-right: 0.5rem;
+  font-size: 1.1rem;
+`;
+
+const FileUploadInput = styled.input`
+  display: none;
+`;
+
+const FileUploadInfo = styled.span`
+  margin-left: 1rem;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+`;
+
 const LoadingIndicator = styled.div`
   text-align: center;
   margin-top: 1rem;
@@ -76,6 +114,8 @@ const TaskInput: React.FC<TaskInputProps> = ({ onTasksGenerated }) => {
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +131,7 @@ const TaskInput: React.FC<TaskInputProps> = ({ onTasksGenerated }) => {
       const response = await generateTasks(userInput);
       onTasksGenerated(response.tasks);
       setUserInput('');
+      setUploadedFileName(null);
     } catch (err) {
       setError('Failed to generate tasks. Please try again.');
       console.error(err);
@@ -98,15 +139,63 @@ const TaskInput: React.FC<TaskInputProps> = ({ onTasksGenerated }) => {
       setIsLoading(false);
     }
   };
+  
+  const handleFileUploadClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Check if file is a text file
+    if (file.type !== 'text/plain') {
+      setError('Please upload a text file (.txt)');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setUserInput(content);
+      setUploadedFileName(file.name);
+      setError(null);
+    };
+    
+    reader.onerror = () => {
+      setError('Failed to read the file. Please try again.');
+    };
+    
+    reader.readAsText(file);
+  };
 
   return (
     <InputContainer>
       <Title>Describe Your Project</Title>
+      
+      <FileUploadContainer>
+        <FileUploadButton type="button" onClick={handleFileUploadClick}>
+          <FileUploadIcon>📄</FileUploadIcon>
+          Upload Project Description
+        </FileUploadButton>
+        <FileUploadInput 
+          type="file" 
+          ref={fileInputRef} 
+          accept=".txt"
+          onChange={handleFileUpload}
+        />
+        {uploadedFileName && (
+          <FileUploadInfo>Uploaded: {uploadedFileName}</FileUploadInfo>
+        )}
+      </FileUploadContainer>
+      
       <Form onSubmit={handleSubmit}>
         <TextArea
           value={userInput}
           onChange={(e) => setUserInput(e.target.value)}
-          placeholder="Describe your project or goal (e.g., 'Create a company website with blog and contact form')"
+          placeholder="Describe your project or goal (e.g., 'Create a company website with blog and contact form') or upload a text file"
           disabled={isLoading}
         />
         <Button type="submit" disabled={isLoading || !userInput.trim()}>

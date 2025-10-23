@@ -79,23 +79,32 @@ const CheckboxLabel = styled.label`
 interface TaskItemProps {
   task: Task;
   onToggleComplete: (taskId: string, completed: boolean) => void;
+  onTaskClick: (task: Task) => void;
 }
 
-const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete }) => {
+const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete, onTaskClick }) => {
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (error) {
-      return dateString;
+        return dateString;
     }
   };
 
-  const handleToggleComplete = () => {
+  const handleToggleComplete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening modal when clicking checkbox
     onToggleComplete(task.id, !task.completed);
   };
 
+  const handleTaskClick = () => {
+    onTaskClick(task);
+  };
+
   return (
-    <TaskCard completed={task.completed}>
+    <TaskCard 
+      completed={task.completed}
+      onClick={handleTaskClick}
+    >
       <TaskHeader>
         <TaskTitle completed={task.completed}>{task.title}</TaskTitle>
         <TaskDates>
@@ -108,12 +117,12 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onToggleComplete }) => {
         {task.description}
       </TaskDescription>
       
-      <TaskActions>
+      <TaskActions onClick={(e) => e.stopPropagation()}>
         <CheckboxLabel>
           <Checkbox 
             type="checkbox" 
             checked={task.completed} 
-            onChange={handleToggleComplete}
+            onChange={(e) => handleToggleComplete(e as unknown as React.MouseEvent)}
           />
           {task.completed ? 'Completed' : 'Mark as completed'}
         </CheckboxLabel>

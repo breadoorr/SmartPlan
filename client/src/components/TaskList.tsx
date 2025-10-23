@@ -50,9 +50,10 @@ const EmptyStateText = styled.p`
 interface TaskListProps {
   tasks: Task[];
   onToggleComplete: (taskId: string, completed: boolean) => void;
+  onTaskClick: (task: Task) => void;
 }
 
-const TaskList: React.FC<TaskListProps> = ({ tasks, onToggleComplete }) => {
+const TaskList: React.FC<TaskListProps> = ({ tasks, onToggleComplete, onTaskClick }) => {
   const completedCount = tasks.filter(task => task.completed).length;
   
   return (
@@ -78,7 +79,8 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onToggleComplete }) => {
           <TaskItem 
             key={task.id} 
             task={task} 
-            onToggleComplete={onToggleComplete} 
+            onToggleComplete={onToggleComplete}
+            onTaskClick={onTaskClick}
           />
         ))
       )}

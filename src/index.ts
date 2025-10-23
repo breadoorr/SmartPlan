@@ -24,6 +24,8 @@ interface Task {
   id: string;
   title: string;
   description: string;
+  startTime: string;
+  endTime: string;
   startDate: string;
   endDate: string;
   completed: boolean;
@@ -76,15 +78,22 @@ app.post('/api/generate-tasks', async (req, res) => {
                     "id": "unique-id",
                     "title": "Task title",
                     "description": "Task description",
-                    "startTime": "00:00:00.000Z",
-                    "endTime": "00:00:00.000Z",
-                    "startDate": "YYYY-MM-DD",
+                    "startTime": "HH:MM:SS.000Z", // Use specific times like "09:00:00.000Z" for 9 AM
+                    "endTime": "HH:MM:SS.000Z",   // Use specific times like "10:30:00.000Z" for 10:30 AM
+                    "startDate": "YYYY-MM-DD",    // Use today's date (${new Date().toISOString().split('T')[0]}) as the starting point
                     "endDate": "YYYY-MM-DD",
                     "completed": false
                   }
                 ]
                 
-                The tasks should form a logical roadmap for completing the project. Use realistic timeframes.
+                Important requirements:
+                1. The tasks should form a logical roadmap for completing the project.
+                2. Use realistic timeframes with specific start and end times for each task.
+                3. Distribute tasks across working hours (9 AM to 5 PM).
+                4. Each task should have a duration appropriate to its complexity.
+                5. Make sure startTime and endTime use the format "HH:MM:00.000Z" (hours:minutes).
+                6. Start dates should begin with today's date (${new Date().toISOString().split('T')[0]}).
+                
                 Based on this structured project description:
                 ${structuredInput}
               `,
